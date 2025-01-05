@@ -1,5 +1,9 @@
 # chayang
 
+Gradually dim the screen.
+
+Can be used to implement a grace period before locking the session.
+
 Forked from [emersion/chayang](https://git.sr.ht/~emersion/chayang) with the following changes:
 
 - Supports reverse dimming
@@ -8,10 +12,6 @@ Forked from [emersion/chayang](https://git.sr.ht/~emersion/chayang) with the fol
 These changes are useful for fading in after unlocking the screen:
 
     chayang -d 10 && swaylock && chayang -Xrd 5
-
-Gradually dim the screen.
-
-Can be used to implement a grace period before locking the session.
 
 ## Usage
 
