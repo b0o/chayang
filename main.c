@@ -25,9 +25,11 @@ static int64_t now_ms(void) {
   return (int64_t)ts.tv_sec * 1000 + ts.tv_nsec / 1000000;
 }
 
-static void cancel(struct chayang *state) {
-  state->running = false;
-  state->cancelled = true;
+static void cancel(struct chayang *state, bool force) {
+  if (force || state->exit_on_key) {
+    state->running = false;
+    state->cancelled = true;
+  }
 }
 
 static void frame_callback_handle_done(void *data, struct wl_callback *callback,
@@ -51,7 +53,12 @@ static void repaint_output(struct chayang_output *output) {
     return;
   }
 
-  uint32_t alpha = progress * UINT32_MAX;
+  uint32_t alpha;
+  if (output->chayang->reverse) {
+    alpha = (1.0 - progress) * UINT32_MAX;
+  } else {
+    alpha = progress * UINT32_MAX;
+  }
   struct wl_buffer *buffer =
       wp_single_pixel_buffer_manager_v1_create_u32_rgba_buffer(
           output->chayang->single_pixel_buffer_manager, 0, 0, 0, alpha);
@@ -135,7 +142,7 @@ static void pointer_handle_motion(void *data, struct wl_pointer *wl_pointer,
                                   uint32_t time, wl_fixed_t surface_x,
                                   wl_fixed_t surface_y) {
   struct chayang_seat *seat = data;
-  cancel(seat->chayang);
+  cancel(seat->chayang, false);
 }
 
 static void pointer_handle_button(void *data, struct wl_pointer *wl_pointer,
@@ -143,7 +150,7 @@ static void pointer_handle_button(void *data, struct wl_pointer *wl_pointer,
                                   uint32_t button, uint32_t state) {
   struct chayang_seat *seat = data;
   if (state == WL_POINTER_BUTTON_STATE_PRESSED) {
-    cancel(seat->chayang);
+    cancel(seat->chayang, false);
   }
 }
 
@@ -151,7 +158,7 @@ static void pointer_handle_axis(void *data, struct wl_pointer *wl_pointer,
                                 uint32_t time, uint32_t axis,
                                 wl_fixed_t value) {
   struct chayang_seat *seat = data;
-  cancel(seat->chayang);
+  cancel(seat->chayang, false);
 }
 
 static const struct wl_pointer_listener pointer_listener = {
@@ -185,7 +192,7 @@ static void keyboard_handle_key(void *data, struct wl_keyboard *wl_keyboard,
                                 uint32_t state) {
   struct chayang_seat *seat = data;
   if (state == WL_KEYBOARD_KEY_STATE_PRESSED) {
-    cancel(seat->chayang);
+    cancel(seat->chayang, false);
   }
 }
 
@@ -303,9 +310,12 @@ int main(int argc, char *argv[]) {
   wl_list_init(&state.outputs);
   wl_list_init(&state.seats);
 
+  state.reverse = false;
+  state.exit_on_key = true;
+
   double delay_sec = 3;
   while (1) {
-    int opt = getopt(argc, argv, "hd:");
+    int opt = getopt(argc, argv, "hd:rX");
     if (opt < 0) {
       break;
     }
@@ -320,8 +330,17 @@ int main(int argc, char *argv[]) {
         return 1;
       }
       break;
+    case 'r':
+      state.reverse = true;
+      break;
+    case 'X':
+      state.exit_on_key = false;
+      break;
     default:
-      fprintf(stderr, "usage: chayang [-d seconds]\n");
+      fprintf(stderr, "usage: chayang [-d seconds] [-r] [-X]\n");
+      fprintf(stderr, "  -d seconds\tdelay before dimming (default: 3)\n");
+      fprintf(stderr, "  -r\t\treverse dimming direction (fade in)\n");
+      fprintf(stderr, "  -X\t\tdon't exit on key/mouse events\n");
       return opt == 'h' ? 0 : 1;
     }
   }

@@ -17,6 +17,7 @@ struct chayang {
 
   bool running, cancelled;
   int64_t delay_ms, start_time_ms;
+  bool reverse, exit_on_key;
 };
 
 struct chayang_output {
